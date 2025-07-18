@@ -1,4 +1,4 @@
-// SPDX-Licencse-Identifier:MIT
+// SPDX-Licencse-Identifier: MIT
 pragma solidity ^0.8.20;
 
 ///@title MyToken -ERC-20 Token Implementation
@@ -10,6 +10,13 @@ contract MyToken {
     // Mapping from owner -> spender -> allowance
     mapping (address => mapping (address => uint)) private _allowances;
 
+    address public owner;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not the contract owner");
+        _;  
+    }
+
     uint256 private _totalSupply;
     string public name;
     string public symbol;
@@ -20,6 +27,7 @@ contract MyToken {
         name = _name;
         decimals = _decimals;
         symbol = _symbol;
+        owner = msg.sender; // Set the contract deployer as the owner
         _mint(msg.sender, initialSupply * (10 ** uint256(decimals)));
     }
 
@@ -52,8 +60,8 @@ contract MyToken {
     }
 
     /// @notice Returns how much spender can use from owner’s account
-    function allowance(address owner, address spender) external view returns (uint256){
-        return _allowances[owner][spender];
+    function allowance(address _owner, address spender) external view returns (uint256){
+        return _allowances[_owner][spender];
     }
 
     /// @notice Transfer from one account to another (using allowance)
@@ -65,6 +73,21 @@ contract MyToken {
         _balances[to] += amount;
         emit Transfer(from, to, amount);
         return true;
+    }
+    /// @notice Owner only mintig function
+    function mint(address to, uint256 amount)external onlyOwner{
+        _mint(to, amount);
+    }
+    /// @notice allow anyone to burn their own tokens
+    function burn(uint256 amount) external {
+        _burn(msg.sender, amount);
+    }
+    /// @notice Allow burning from another user with approval
+    function burnFrom(address from, uint256 amount) external {
+        uint256 currentAllowance = _allowances[from][msg.sender];
+        require(currentAllowance >= amount, "Burn amount exceeds allowance");
+        _allowances[from][msg.sender] -= amount;
+        _burn(from, amount);
     }
 
     /// @dev Internal mint function
