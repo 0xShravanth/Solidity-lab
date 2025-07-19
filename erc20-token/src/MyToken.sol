@@ -16,12 +16,16 @@ contract MyToken {
     uint8 public decimals;
     address public immutable owner;
     bool public paused;
+    uint256 public immutable cap;
 
+    /// @notice Modifier to restrict access to the contract owner
+    /// @dev This modifier checks if the caller is the owner of the contract
     modifier onlyOwner() {
         require(msg.sender == owner, "Not the contract owner");
         _;  
     }
-
+    /// @notice Modifier to check if the contract is not paused
+    /// @dev This modifier prevents any function from being executed when the contract is paused
     modifier whenNotPaused(){
         require(!paused, "Token is paused");
         _;
@@ -29,11 +33,13 @@ contract MyToken {
     
 
     /// @notice sets name, symbol, and decimals at deployment
-    constructor(string memory _name, string memory _symbol, uint8 _decimals, uint256 initialSupply){
+    constructor(string memory _name, string memory _symbol, uint8 _decimals, uint256 initialSupply , uint256 _cap) {
+        require(initialSupply <= _cap, "Initial supply exceeds cap");
         name = _name;
         decimals = _decimals;
         symbol = _symbol;
         owner = msg.sender; // Set the contract deployer as the owner
+        cap = _cap;
         _mint(msg.sender, initialSupply * (10 ** uint256(decimals)));
     }
     /// @notice Pauses the contract, preventing transfers and minting
@@ -60,9 +66,11 @@ contract MyToken {
     function transfer(address recipient, uint256 amount) external whenNotPaused  returns (bool){
         require(recipient != address(0), "invalid recipient address");
         require(_balances[msg.sender] >= amount, "Not enough balance" );
+        _beforeTokenTransfer(msg.sender, recipient, amount);
         _balances[msg.sender] -= amount;
         _balances[recipient] += amount;
         emit Transfer(msg.sender, recipient, amount);
+        _afterTokenTransfer(msg.sender, recipient, amount);
         return true;
     }
 
@@ -104,9 +112,14 @@ contract MyToken {
         _burn(from, amount);
     }
 
+    /// @dev Transfer function to allow internal transfers(transfer hook)
+    function _beforeTokenTransfer(address from, address to, uint256 amount) internal virtual{}
+    function _afterTokenTransfer(address from, address to, uint256 amount) internal virtual{}
+
     /// @dev Internal mint function
     function _mint(address to, uint256 amount) internal {
         require(to != address(0),"Invalid address");
+        require(_totalSupply + amount <= cap, "Cap exceeded");
         _totalSupply += amount;
         _balances[to] += amount;
         emit Transfer(address(0), to, amount);

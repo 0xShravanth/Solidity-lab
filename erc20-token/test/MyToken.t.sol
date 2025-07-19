@@ -9,7 +9,7 @@ contract MyTokenTest is Test {
     address user1 = address(0xBEEF);
 
     function setUp() public {
-        token = new MyToken("MyToken", "MTK", 18, 1000);
+        token = new MyToken("MyToken", "MTK", 18, 1000, 20000);
     }
 
     function testMintOnlyOwner() public {
@@ -36,4 +36,23 @@ contract MyTokenTest is Test {
         token.burnFrom(user1, 500);
         assertEq(token.balance(user1), 500);
     }
+        function testPausePreventsTransfer() public {
+        token.pause();
+        vm.expectRevert("Token is paused");
+        token.transfer(address(0xBEEF), 10);
+    }
+
+    function testUnpauseRestoresTransfer() public {
+        token.pause();
+        token.unpause();
+        token.transfer(address(0xBEEF), 10);
+        assertEq(token.balance(address(0xBEEF)), 10);
+    }
+
+    function testCapPreventsExcessMinting() public {
+        uint256 max = token.cap();
+        vm.expectRevert("Cap exceeded");
+        token.mint(address(0xBEEF), max);
+    }
+
 }
