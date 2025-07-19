@@ -10,17 +10,23 @@ contract MyToken {
     // Mapping from owner -> spender -> allowance
     mapping (address => mapping (address => uint)) private _allowances;
 
-    address public owner;
+    uint256 private _totalSupply;
+    string public name;
+    string public symbol;
+    uint8 public decimals;
+    address public immutable owner;
+    bool public paused;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not the contract owner");
         _;  
     }
 
-    uint256 private _totalSupply;
-    string public name;
-    string public symbol;
-    uint8 public decimals;
+    modifier whenNotPaused(){
+        require(!paused, "Token is paused");
+        _;
+    } 
+    
 
     /// @notice sets name, symbol, and decimals at deployment
     constructor(string memory _name, string memory _symbol, uint8 _decimals, uint256 initialSupply){
@@ -29,6 +35,14 @@ contract MyToken {
         symbol = _symbol;
         owner = msg.sender; // Set the contract deployer as the owner
         _mint(msg.sender, initialSupply * (10 ** uint256(decimals)));
+    }
+    /// @notice Pauses the contract, preventing transfers and minting
+    function pause() external onlyOwner {
+        paused = true;
+    }
+    /// @notice Unpauses the contract, allowing transfers and minting
+    function unpause() external onlyOwner {
+        paused = false;
     }
 
 
@@ -43,7 +57,7 @@ contract MyToken {
     }
 
     /// @notice Transfers tokens from sender to recipient account
-    function transfer(address recipient, uint256 amount) external returns (bool){
+    function transfer(address recipient, uint256 amount) external whenNotPaused  returns (bool){
         require(recipient != address(0), "invalid recipient address");
         require(_balances[msg.sender] >= amount, "Not enough balance" );
         _balances[msg.sender] -= amount;
@@ -65,7 +79,7 @@ contract MyToken {
     }
 
     /// @notice Transfer from one account to another (using allowance)
-    function transferFrom(address from, address to, uint256 amount)external returns(bool){
+    function transferFrom(address from, address to, uint256 amount)external whenNotPaused  returns(bool){
         require(_allowances[from][msg.sender] >= amount, "Not enough allowance");
         require(_balances[from] >= amount,"Not enough balance");
         _allowances[from][msg.sender] -= amount;
@@ -75,7 +89,7 @@ contract MyToken {
         return true;
     }
     /// @notice Owner only mintig function
-    function mint(address to, uint256 amount)external onlyOwner{
+    function mint(address to, uint256 amount)external whenNotPaused  onlyOwner{
         _mint(to, amount);
     }
     /// @notice allow anyone to burn their own tokens
